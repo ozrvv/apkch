@@ -1,0 +1,103 @@
+======================================
+CRYSTAL CHATBOX - QUICK BUILD GUIDE
+======================================
+
+⚠️ IMPORTANT: ENCRYPT CODE BEFORE RELEASE!
+See: Dev Tools/ENCRYPT_CODE.md
+
+
+WINDOWS .EXE (ENCRYPTED - For Release)
+-----------------------------------------
+
+1. Install tools:
+   pip install pyarmor==8.5.9 pyinstaller==5.13.2
+
+2. Run encryption script:
+   cd "Crystal Chatbox"
+   python ..\Dev Tools\encrypt_for_windows.py
+
+3. Find your protected .exe:
+   dist_encrypted\Crystal_Chatbox.exe
+
+4. Test thoroughly, then release!
+
+⏱️ Build time: 2-5 minutes
+📦 Output: Protected executable
+
+
+WINDOWS .EXE (Testing Only - NOT Protected)
+---------------------------------------------
+
+1. Install PyInstaller:
+   pip install pyinstaller
+
+2. Build:
+   cd "Crystal Chatbox"
+   pyinstaller main.py --onefile --windowed --add-data "templates;templates" --add-data "static;static" --name "Crystal_Chatbox"
+
+3. Find your .exe:
+   dist\Crystal_Chatbox.exe
+
+⚠️ DO NOT RELEASE THIS - Your code is NOT protected!
+
+
+ANDROID APK (Protected - For Release)
+---------------------------------------
+
+REQUIREMENTS:
+- Linux, macOS, or Windows with WSL2
+- 8GB RAM, 10GB disk space
+NOTE:
+- If you can’t use sudo/admin installs locally, use the GitHub Actions workflow:
+  `.github/workflows/android-apk.yml` (run it from the repo’s Actions tab).
+
+1. Install dependencies (Ubuntu):
+   sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+
+2. Install Buildozer & Obfuscapk:
+   pip3 install buildozer cython obfuscapk
+
+3. Build APK:
+   cd "Crystal Chatbox"
+   buildozer -v android debug
+
+4. PROTECT THE APK (CRITICAL!):
+   obfuscapk -o RandomManifest,ConstStringEncryption,Repackage,Rebuild,NewAlignment,NewSignature bin/crystal_chatbox-*.apk
+
+5. Find your protected APK:
+   bin/crystal_chatbox-1.0.0-arm64-v8a-debug_obfuscated.apk
+
+6. Install on Quest via SideQuest:
+   - Download SideQuest from sidequestvr.com
+   - Connect Quest via USB
+   - Drag APK file to SideQuest
+   - Install!
+
+⏱️ First build: 30-60 min
+⏱️ Protection: 2-5 min
+📦 Output: Protected APK
+
+
+QUICK CHECKLIST
+----------------
+
+Before Release:
+✅ Code encrypted (Windows: run script, Android: run Obfuscapk)
+✅ Tested on clean system/device
+✅ All features working
+✅ License validation tested
+✅ Version number updated in version.txt
+
+NEVER RELEASE:
+❌ dist/Crystal_Chatbox.exe (unencrypted)
+❌ bin/*.apk (without _obfuscated suffix)
+
+ALWAYS RELEASE:
+✅ dist_encrypted/Crystal_Chatbox.exe (Windows)
+✅ bin/*_obfuscated.apk (Android)
+
+
+NEED MORE HELP?
+----------------
+Full instructions: Dev Tools/BUILD_INSTRUCTIONS.md
+Encryption guide: Dev Tools/ENCRYPT_CODE.md

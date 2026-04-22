@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Crystal Client Dashboard</title>
+<link rel="stylesheet" href="/static/style.css">
+<script>
+window.CONFIG = {
+    refresh_interval: {{ dashboard_update_interval | default(1) }},
+    customs_text: `{{ customs_text | escape | replace('\n', '\\n') }}`
+};
+</script>
+</head>
+<body class="{% if theme == 'light' %}light{% endif %} {% if compact_mode %}compact{% endif %}">
+<div class="container">
+    <!-- Persistent Spotify Restart Banner -->
+    {% if spotify_needs_restart %}
+    <div id="spotify_restart_banner" style="background:#1db954;color:white;padding:12px 24px;margin-bottom:16px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
+            <div style="display:flex;align-items:center;gap:12px;flex:1;">
+                <div style="font-size:24px;">✅</div>
+                <div>
+                    <div style="font-weight:bold;margin-bottom:2px;">Spotify Setup Complete!</div>
+                    <div style="font-size:13px;opacity:0.9;">After authorizing Spotify below, close this app and relaunch Crystal_Chatbox.exe to activate.</div>
+                </div>
+            </div>
+            <button id="restart_app_btn_persistent" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.4);padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;white-space:nowrap;">
+                ❌ Close App
+            </button>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="header">
+        <img src="/static/logo.png" alt="Crystal Logo" class="logo" />
+        <div class="h1">Crystal Client Dashboard</div>
+    </div>
+
+    <div class="tabs">
+        <div id="chatbox_main_tab" class="tab active">Chatbox</div>
+        <div id="body_tracking_main_tab" class="tab">Body Tracking</div>
+        <div id="router_main_tab" class="tab">Router</div>
+        <div id="vrcx_plus_main_tab" class="tab">VRCX+</div>
+    </div>
+    <div id="chatbox_subtabs" class="tabs" style="margin-top:8px;">
+        <div id="dashboard_tab" class="tab active">Dashboard</div>
+        <div id="settings_tab" class="tab">Settings</div>
+        <div id="advanced_tab" class="tab">Advanced</div>
+    </div>
+
+    <!-- ==================== DASHBOARD TAB ==================== -->
+    <div id="dashboard_content" class="tabcontent" style="display:block;">
+        <div class="card">
+            <div class="typing-section">
+                <label>Type a message to chat in VRChat:</label>
+                <div class="typing-input-wrapper">
+                    <input type="text" id="typing_input" placeholder="Type your message..." maxlength="144" />
+                    <button id="btn_send_typed" class="btn-on" disabled>Send</button>
+                </div>
+                <div class="typing-info">
+                    <span id="typing_char_count">0/144</span>
+                    <span id="typing_status"></span>
+                </div>
+                <p class="typing-hint">While typing, your regular chatbox content pauses. Your message will show alone for a few seconds, then resume normal rotation.</p>
+            </div>
+
+            <div class="quick-phrases-section" style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.1);">
+                <label style="display:flex;align-items:center;gap:8px;">
+                    <span>Quick Phrases</span>
+                    <button type="button" id="btn_toggle_phrases" class="btn-small" style="font-size:11px;padding:2px 8px;">Show</button>
+                </label>
+                <div id="quick_phrases_container" style="display:none;margin-top:8px;">
+                    <div id="quick_phrases_list" style="display:flex;flex-wrap:wrap;gap:6px;max-height:120px;overflow-y:auto;">
+                        {% for phrase in quick_phrases %}
+                        <button type="button" class="quick-phrase-btn" data-phrase="{{ phrase.text }}" title="Click to send">
+                            {% if phrase.emoji %}{{ phrase.emoji }} {% endif %}{{ phrase.text[:20] }}{% if phrase.text|length > 20 %}...{% endif %}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    <div style="margin-top:8px;display:flex;gap:6px;">
+                        <input type="text" id="new_phrase_input" placeholder="Add custom phrase..." maxlength="100" style="flex:1;padding:4px 8px;font-size:12px;" />
+                        <button type="button" id="btn_add_phrase" class="btn-small btn-on" style="padding:4px 12px;">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row" style="margin-top:12px;">
+                <div class="left card">
+                    <div class="controls">
+                        <button id="btn_chatbox" class="btn-off">Chatbox</button>
+                        <div class="btn-with-config">
+                            <button id="btn_time" class="btn-on">Time</button>
+                            <span class="config-gear" data-section="timezone_settings" title="Timezone settings">⚙️</span>
+                        </div>
+                        <div class="btn-with-config">
+                            <button id="btn_custom" class="btn-on">Custom</button>
+                            <span class="config-gear" data-section="custom_messages_settings" title="Custom messages settings">⚙️</span>
+                        </div>
+                        <div class="btn-with-config">
+                            <button id="btn_music" class="btn-on">Music</button>
+                            <span class="config-gear" data-section="music_settings" title="Music settings">⚙️</span>
+                        </div>
+                        <div class="btn-with-config">
+                            <button id="btn_window" class="btn-off">Active Window</button>
+                            <span class="config-gear" data-section="window_settings" title="Window tracking settings">⚙️</span>
+                        </div>
+                        <div class="btn-with-config">
+                            <button id="btn_heartrate" class="btn-off">Heart Rate</button>
+                            <span class="config-gear" data-section="heartrate_settings" title="Heart rate settings">⚙️</span>
+                        </div>
+                        <div class="btn-with-config">
+                            <button id="btn_weather" class="btn-off">Weather</button>
+                            <span class="config-gear" data-section="weather_settings" title="Weather settings">⚙️</span>
+                        </div>
+                        <button id="btn_slim_chatbox" class="btn-{% if slim_chatbox %}on{% else %}off{% endif %}" title="Removes the dark chatbox background for a cleaner look">Slim Chatbox</button>
+                        <div class="btn-with-config">
+                            <button id="btn_system_stats" class="btn-{% if system_stats_enabled %}on{% else %}off{% endif %}" title="Show CPU/RAM usage in chatbox">System Stats</button>
+                            <span class="config-gear" data-section="system_stats_settings" title="System stats settings">⚙️</span>
+                        </div>
+                        <div class="btn-with-config">
+                            <button id="btn_afk" class="btn-{% if afk_enabled %}on{% else %}off{% endif %}" title="Auto-show AFK message after inactivity">AFK Mode</button>
+                            <span class="config-gear" data-section="afk_settings" title="AFK settings">⚙️</span>
+                        </div>
+                        <button id="btn_music_progress" class="btn-on">Music Progress</button>
+
+                        <label style="display:block;margin-top:6px;">Progress Style:</label>
+                        <select id="select_progress_style">
+                            <option value="bar" {% if progress_style == 'bar' %}selected{% endif %}>Bar</option>
+                            <option value="dots" {% if progress_style == 'dots' %}selected{% endif %}>Dots</option>
+                            <option value="percentage" {% if progress_style == 'percentage' %}selected{% endif %}>Percentage</option>
+                        </select>
+
+                        <hr />
+                        <label>Layout (drag to reorder):</label>
+                        <ul id="layout_list">
+                            {% set all_items = {
+                                "time": "Time",
+                                "custom": "Custom Message",
+                                "song": "Song",
+                                "window": "Active Window",
+                                "heartrate": "Heart Rate",
+                                "weather": "Weather",
+                                "system_stats": "System Stats",
+                                "afk": "AFK Status"
+                            } %}
+
+                            {# Render items in the order of layout_order first #}
+                            {% for key in layout_order %}
+                                {% if all_items[key] is defined %}
+                                    <li class="layout-item" draggable="true" data-key="{{ key }}">{{ all_items[key] }}</li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {# Render any items missing from layout_order at the end #}
+                            {% for key, label in all_items.items() %}
+                                {% if key not in layout_order %}
+                                    <li class="layout-item" draggable="true" data-key="{{ key }}">{{ label }}</li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+
+                    </div>
+                </div>
+
+                <div class="right card">
+                    <div class="status-line"><strong>Chatbox:</strong> <pre id="chatbox_status" class="multiline">?</pre></div>
+                    <div class="status-line"><strong>Time:</strong> <pre id="time_status" class="multiline">?</pre></div>
+                    <div class="status-line"><strong>Custom Message:</strong> <pre id="custom_status" class="multiline">?</pre></div>
+                    <div class="status-line"><strong>Current Song:</strong> <pre id="song_status" class="multiline">?</pre></div>
+                    <div class="status-line"><strong>Active Window:</strong> <pre id="window_status" class="multiline">?</pre></div>
+                    <div class="status-line"><strong>Heart Rate:</strong> <pre id="heartrate_status" class="multiline">?</pre></div>
+                    <div class="status-line" id="hr_stats_line" style="display:none;font-size:11px;opacity:0.8;margin-left:12px;"><span id="hr_stats_text"></span></div>
+                    <div class="status-line"><strong>Weather:</strong> <pre id="weather_status" class="multiline">?</pre></div>
+                    <div class="status-line" id="system_stats_line" style="display:none;"><strong>System:</strong> <pre id="system_stats_status" class="multiline">?</pre></div>
+                    <div class="status-line" id="afk_status_line" style="display:none;"><strong>AFK:</strong> <pre id="afk_status" class="multiline">?</pre> <span id="afk_countdown" style="margin-left:8px;font-size:12px;opacity:0.8;"></span></div>
+                    <div class="status-line"><strong>Last Sent:</strong> <pre id="last_msg" class="multiline">---</pre></div>
+                    <div class="status-line" id="msg_length_warning" style="display:none;color:#ff9800;font-size:12px;"><span id="msg_length_text"></span></div>
+
+                    <div class="preview fixed-preview" id="preview">Preview will show here.</div>
+                    <img id="album_art" class="album" src="" alt="" />
+                    
+                    <div style="margin-top:10px;">
+                        <strong>Next Messages:</strong>
+                        <div id="message_queue" style="margin-top:4px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SETTINGS TAB ==================== -->
+    <div id="settings_content" class="tabcontent" style="display:none;">
+        <div class="card">
+            <form action="/save_settings" method="post">
+                
+                <!-- VRChat Connection Settings -->
+                <h3 class="section-header">VRChat Connection</h3>
+                <div class="section-content">
+                    <label>Quest or Desktop IP:</label>
+                    <input type="text" name="quest_ip" value="{{ quest_ip }}" required />
+                    <label>Quest Port:</label>
+                    <input type="number" name="quest_port" value="{{ quest_port }}" required />
+                    <label>OSC Send Interval (seconds):</label>
+                    <input type="number" name="osc_send_interval" value="{{ osc_send_interval }}" required />
+                    <label>Dashboard Update Interval (seconds):</label>
+                    <input type="number" name="dashboard_update_interval" value="{{ dashboard_update_interval }}" required />
+                </div>
+                
+                <hr />
+                
+                <!-- Timezone Settings -->
+                <h3 class="section-header" id="timezone_settings">Timezone</h3>
+                <div class="section-content">
+                    <p style="color:#999;font-size:13px;margin-bottom:12px;">Set the timezone for the time display in your chatbox</p>
+                    <label>Timezone:</label>
+                    <select name="timezone">
+                        <option value="local" {% if timezone == 'local' %}selected{% endif %}>Local (System Default)</option>
+                        {% for tz in timezones %}
+                        <option value="{{ tz }}" {% if timezone==tz %}selected{% endif %}>{{ tz }}</option>
+                        {% endfor %}
+                    </select>
+                    <div style="color:#666;font-size:11px;margin-top:4px;">Choose "Local" to use your computer's timezone, or select a specific timezone</div>
+                </div>
+
+                <hr />
+                
+                <!-- Spotify Integration -->
+                <h3 class="section-header" id="music_settings">Spotify Integration</h3>
+                <div class="section-content">
+                    <div class="info-box">
+                        <strong>Setup Instructions:</strong>
+                        <ol style="margin:8px 0;padding-left:20px;">
+                            <li>Go to <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:#00bfff;">Spotify Developer Dashboard</a></li>
+                            <li>Create a new app (or use an existing one)</li>
+                            <li>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong> below</li>
+                            <li>Add this <strong>Redirect URI</strong> to your Spotify app settings:</li>
+                        </ol>
+                        <div class="code-box">
+                            {{ spotify_redirect_uri }}
+                        </div>
+                        <div style="margin-top:8px;color:#999;font-size:12px;">
+                            After saving credentials, click "Authorize Spotify" to connect your account.
+                        </div>
+                    </div>
+                    
+                    <label>Spotify Client ID:</label>
+                    <input type="text" name="spotify_client_id" value="{{ spotify_client_id }}" placeholder="Enter your Spotify Client ID" />
+                    <label>Spotify Client Secret:</label>
+                    <input type="text" name="spotify_client_secret" value="{{ spotify_client_secret }}" placeholder="Enter your Spotify Client Secret" />
+
+                    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                        <button type="submit" class="btn-on">Save Settings</button>
+                        <a href="/spotify-auth" style="text-decoration:none;">
+                            <button type="button" class="btn-on" style="background:#1db954;">Authorize Spotify</button>
+                        </a>
+                    </div>
+                </div>
+            </form>
+
+            <hr />
+            
+            <!-- Custom Messages -->
+            <h3 class="section-header" id="custom_messages_settings">Custom Messages</h3>
+            <div class="section-content">
+                <p style="color:#999;font-size:13px;margin-bottom:12px;">Add rotating custom messages to display in your chatbox</p>
+                <label>Your Messages:</label>
+                <div id="inline_messages_container" style="margin-top:8px;"></div>
+                <button id="add_message_btn" class="btn-on" style="margin-top:8px;">Add New Message</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== ADVANCED TAB ==================== -->
+    <div id="advanced_content" class="tabcontent" style="display:none;">
+        <div class="card">
+            
+            <!-- APPEARANCE -->
+            <h3 class="section-header">Appearance</h3>
+            <div class="section-content">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button id="toggle_theme_btn" class="btn-{% if theme == 'light' %}on{% else %}off{% endif %}">Theme: {% if theme == 'light' %}Light{% else %}Dark{% endif %}</button>
+                    <button id="toggle_streamer_btn" class="btn-{% if streamer_mode %}on{% else %}off{% endif %}">Streamer Mode: {% if streamer_mode %}ON{% else %}OFF{% endif %}</button>
+                    <button id="toggle_compact_btn" class="btn-{% if compact_mode %}on{% else %}off{% endif %}">Compact Mode: {% if compact_mode %}ON{% else %}OFF{% endif %}</button>
+                    <button id="show_module_icons_btn" class="btn-{% if show_module_icons %}on{% else %}off{% endif %}">Module Icons: {% if show_module_icons %}ON{% else %}OFF{% endif %}</button>
+                </div>
+            </div>
+            
+            <hr />
+            
+            <!-- TEXT EFFECTS -->
+            <h3 class="section-header">Text Effects</h3>
+            <div class="section-content">
+                <label>Apply visual effects to your messages:</label>
+                <select id="text_effect_select" style="width:100%;padding:6px;margin-top:8px;background:var(--input-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;">
+                    <option value="none">None</option>
+                    <option value="rainbow">🌈 Rainbow</option>
+                    <option value="sparkle">✨ Sparkle</option>
+                    <option value="fire">🔥 Fire</option>
+                    <option value="ice">❄️ Ice</option>
+                    <option value="heart">💖 Hearts</option>
+                    <option value="star">⭐ Stars</option>
+                    <option value="neon">💡 Neon</option>
+                    <option value="wave">〰️ Wave</option>
+                    <option value="bounce">⬆️ Bounce</option>
+                </select>
+                <div style="margin-top:8px;padding:12px;background:#2a2a2a;border-radius:6px;min-height:40px;font-size:13px;color:#999;">
+                    <strong>Preview:</strong> <span id="effect_preview_text">Select an effect to see preview</span>
+                </div>
+            </div>
+            
+            <hr />
+            
+            <!-- CHATBOX FRAME -->
+            <h3 class="section-header">Chatbox Frame</h3>
+            <div class="section-content">
+                <label>Add a decorative border around your chatbox messages:</label>
+                <select id="chatbox_frame_select" style="width:100%;padding:6px;margin-top:8px;background:var(--input-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;">
+                    <option value="none">None - Plain text</option>
+                    <option value="dots">Dots - Simple dotted border</option>
+                    <option value="dashes">Dashes - Clean dash border</option>
+                    <option value="equals">Equals - Double line style</option>
+                    <option value="stars">Stars - Star border</option>
+                    <option value="hashtags">Hashtags - Bold border</option>
+                    <option value="tildes">Tildes - Wavy border</option>
+                    <option value="minimal_top">Minimal Top - Line above</option>
+                    <option value="minimal_both">Minimal Lines - Above and below</option>
+                    <option value="arrows">Arrows - Arrow accents</option>
+                    <option value="brackets">Brackets - [Text]</option>
+                    <option value="parens">Parentheses - (Text)</option>
+                    <option value="angle">Angle Brackets - &lt;Text&gt;</option>
+                    <option value="pipes">Pipes - |Text|</option>
+                </select>
+                <div id="frame_preview_box" style="margin-top:8px;padding:12px;background:#1a1a1a;border-radius:6px;font-family:monospace;font-size:12px;color:#0af;white-space:pre;line-height:1.4;">
+                    Select a frame style to see preview
+                </div>
+            </div>
+            
+            <hr />
+            
+            <!-- TYPING MODE SETTINGS -->
+            <h3 class="section-header">Typing Mode</h3>
+            <div class="section-content">
+                <p style="margin-bottom:12px;color:#999;font-size:13px;">When you type a message, your regular chatbox content pauses so your typed message displays clearly without interference.</p>
+                
+                <div style="margin-bottom:12px;">
+                    <label>Message Display Duration:</label>
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+                        <input type="range" id="typed_message_duration" min="2" max="15" value="{{ typed_message_duration | default(5) }}" style="flex:1;" />
+                        <span id="typed_duration_value" style="min-width:50px;text-align:center;">{{ typed_message_duration | default(5) }}s</span>
+                    </div>
+                    <div style="color:#666;font-size:11px;margin-top:4px;">How long your typed message shows before resuming normal rotation</div>
+                </div>
+                
+                <div>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" id="typing_indicator_enabled" {% if typing_indicator_enabled is not defined or typing_indicator_enabled %}checked{% endif %} />
+                        <span>Show VRChat typing indicator (keyboard icon)</span>
+                    </label>
+                    <div style="color:#666;font-size:11px;margin-top:4px;">Shows the typing indicator in VRChat while you're composing your message</div>
+                </div>
+            </div>
+            
+            <hr />
+            
+            <!-- WINDOW TRACKING SETTINGS -->
+            <h3 class="section-header" id="window_settings">Window Tracking</h3>
+            <div class="section-content">
+                <p style="color:#999;font-size:13px;margin-bottom:12px;">Show what app or game you're currently using in your chatbox</p>
+                
+                <div style="margin-bottom:12px;">
+                    <label>Activity Prefix:</label>
+                    <input type="text" id="window_prefix" value="{{ window_prefix | default('') }}" placeholder="e.g., Currently on: / Playing: / Using: (leave blank for none)" maxlength="30" style="margin-top:6px;" />
+                    <div style="color:#666;font-size:11px;margin-top:4px;">Text shown before the app name (e.g., "Currently on: VRChat" or "Playing: Beat Saber")</div>
+                </div>
+                
+                <div class="example-box" style="background:#1a1a1a;padding:10px;border-radius:6px;margin-top:8px;font-family:monospace;font-size:12px;">
+                    <span style="color:#888;">Preview:</span> <span id="window_prefix_preview">Currently on: VRChat</span>
+                </div>
+                
+                <button id="save_window_settings_btn" class="btn-on" style="margin-top:12px;">Save Window Settings</button>
+            </div>
+            
+            <hr />
+            
+            <!-- AFK SETTINGS -->
+            <h3 class="section-header" id="afk_settings">AFK Detection</h3>
+            <div class="section-content">
+                <p style="color:#999;font-size:13px;margin-bottom:12px;">Automatically show an AFK message after a period of inactivity</p>
+                
+                <div style="margin-bottom:12px;">
+                    <label>AFK Timeout:</label>
+                    <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+                        <input type="range" id="afk_timeout" min="60" max="900" step="30" value="{{ afk_timeout | default(300) }}" style="flex:1;" />
+                        <span id="afk_timeout_value" style="min-width:80px;text-align:center;">{{ ((afk_timeout | default(300)) / 60) | int }} min</span>
+                    </div>
+                    <div style="color:#666;font-size:11px;margin-top:4px;">Time before showing AFK message (1-15 minutes)</div>
+                </div>
+                
+                <div style="margin-bottom:12px;">
+                    <label>Custom AFK Message (leave empty for default):</label>
+                    <input type="text" id="afk_message" value="{{ afk_message }}" placeholder="e.g., Be right back / Taking a break" maxlength="50" style="margin-top:6px;" />
+                    <div style="color:#666;font-size:11px;margin-top:4px;">Your message will show like: "AFK for 5 minutes" or "Be right back for 5 minutes"</div>
+                </div>
+                
+                <div>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" id="afk_show_duration" {% if afk_show_duration is not defined or afk_show_duration %}checked{% endif %} />
+                        <span>Show AFK duration (e.g., "AFK for 5 minutes")</span>
+                    </label>
+                </div>
+                
+                <div class="example-box" style="background:#1a1a1a;padding:10px;border-radius:6px;margin-top:12px;font-family:monospace;font-size:12px;">
+                    <span style="color:#888;">Preview:</span> <span id="afk_preview">AFK for 5 minutes</span>
+                </div>
+                
+                <button id="save_afk_settings_btn" class="btn-on" style="margin-top:12px;">Save AFK Settings</button>
+            </div>
+            
+            <hr />
+            
+            <!-- SYSTEM STATS SETTINGS -->
+            <h3 class="section-header" id="system_stats_settings">System Stats</h3>
+            <div class="section-content">
+                <p style="color:#999;font-size:13px;margin-bottom:12px;">Display CPU, RAM, GPU, and network stats in your chatbox</p>
+                
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" id="show_cpu" {% if show_cpu is not defined or show_cpu %}checked{% endif %} />
+                        <span>Show CPU Usage</span>
+                    </label>
+                    
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" id="show_ram" {% if show_ram is not defined or show_ram %}checked{% endif %} />
+                        <span>Show RAM Usage</span>
+                    </label>
+                    
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" id="show_gpu" {% if show_gpu %}checked{% endif %} />
+                        <span>Show GPU Usage (NVIDIA only)</span>
+                    </label>
+                    
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                        <input type="checkbox" id="show_network" {% if show_network %}checked{% endif %} />
+                        <span>Show Network Speed</span>
+                    </label>
+                </div>
+                
+                <button id="save_system_stats_settings_btn" class="btn-on" style="margin-top:12px;">Save System Stats Settings</button>
+            </div>
+            
+            <hr />
+            
+            <!-- WEATHER -->
+            <h3 class="section-header" id="weather_settings">Weather</h3>
+            <div class="section-content">
+                <label>Display current weather in your chatbox:</label>
+                <div style="margin-top:8px;">
+                    <label>Temperature Unit:</label>
+                    <select id="weather_temp_unit" style="margin-left:8px;padding:4px 8px;background:var(--input-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;">
+                        <option value="F" {% if weather_temp_unit == 'F' or weather_temp_unit is not defined %}selected{% endif %}>Fahrenheit (°F)</option>
+                        <option value="C" {% if weather_temp_unit == 'C' %}selected{% endif %}>Celsius (°C)</option>
+                    </select>
+                </div>
+                <div style="margin-top:12px;">
+                    <label>Location (city name or "auto" for IP-based):</label>
+                    <input type="text" id="weather_location" value="{{ weather_location | default('auto') }}" placeholder="e.g., London, Tokyo, or auto" />
+                    <button id="save_weather_btn" class="btn-on" style="margin-top:8px;">Save Weather Settings</button>
+                    <div style="margin-top:8px;color:#999;font-size:12px;">
+                        Weather updates every 10 minutes using wttr.in service (no API key needed)
+                    </div>
+                </div>
+            </div>
+            
+            <hr />
+            
+            <!-- AI MESSAGE GENERATOR -->
+            <h3 class="section-header">AI Message Generator</h3>
+            <div class="section-content">
+                <div class="info-box">
+                    <strong>Generate creative messages using AI:</strong>
+                    <div style="margin-top:12px;">
+                        <label>Mood/Style:</label>
+                        <select id="ai_mood" style="width:100%;padding:6px;margin-top:4px;background:var(--input-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;">
+                            <option value="funny">Funny</option>
+                            <option value="wholesome">Wholesome</option>
+                            <option value="mysterious">Mysterious</option>
+                            <option value="energetic">Energetic</option>
+                            <option value="chill">Chill</option>
+                            <option value="chaotic">Chaotic</option>
+                            <option value="professional">Professional</option>
+                            <option value="gamer">Gamer</option>
+                        </select>
+                    </div>
+                    <div style="margin-top:12px;">
+                        <label>Theme (optional):</label>
+                        <input type="text" id="ai_theme" placeholder="e.g., cats, space, VRChat..." style="width:100%;padding:6px;margin-top:4px;" />
+                    </div>
+                    <div style="margin-top:12px;">
+                        <button id="generate_ai_btn" class="btn-on">Generate AI Message</button>
+                    </div>
+                    <div id="ai_result" style="margin-top:12px;padding:12px;background:#0d0d0d;border-radius:4px;display:none;">
+                        <div style="margin-bottom:8px;color:#0af;font-weight:bold;">Generated Message:</div>
+                        <div id="ai_message_text" style="margin-bottom:12px;"></div>
+                        <button id="add_ai_message_btn" class="btn-on">Add to Custom Messages</button>
+                    </div>
+                    <div style="margin-top:8px;color:#999;font-size:12px;">
+                        Requires OPENAI_API_KEY environment variable to be set. Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank" style="color:#00bfff;">OpenAI Platform</a>
+                    </div>
+                </div>
+            </div>
+            
+            <hr />
+            
+            <!-- MESSAGE BEHAVIOR -->
+            <h3 class="section-header">Message Behavior</h3>
+            <div class="section-content">
+                <div style="margin-bottom:12px;">
+                    <button id="random_order_btn" class="btn-{% if random_order %}on{% else %}off{% endif %}">Random Order: {% if random_order %}ON{% else %}OFF{% endif %}</button>
+                </div>
+                
+                <label>Per-Message Timing (seconds):</label>
+                <div id="per_message_timing_container" style="margin-top:8px;"></div>
+                
+                <div id="message_weights_section" style="{% if not random_order %}display:none;{% endif %}margin-top:16px;">
+                    <label>Message Weights (higher weight = appears more often):</label>
+                    <div id="message_weights_container" style="margin-top:8px;"></div>
+                </div>
+            </div>
+            
+            <hr />
+            
+            <!-- PROFILES & PRESETS -->
+            <h3 class="section-header">Profiles & Presets</h3>
+            <div class="section-content">
+                <label>Save and load different chatbox configurations:</label>
+                <div style="margin-top:8px;">
+                    <label>Profile:</label>
+                    <select id="profile_select" style="width:100%;padding:6px;margin-top:4px;background:var(--input-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;">
+                        <option value="">-- Select a profile --</option>
+                    </select>
+                    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+                        <button id="save_profile_btn" class="btn-on">Save Current Profile</button>
+                        <button id="load_profile_btn" class="btn-on">Load Profile</button>
+                        <button id="delete_profile_btn" class="btn-off">Delete Profile</button>
+                    </div>
+                    <div style="margin-top:8px;color:#999;font-size:12px;">
+                        Profiles save all display settings, custom messages, emojis, and layout preferences.
+                    </div>
+                </div>
+            </div>
+            
+            <hr />
+            
+            <!-- INTEGRATIONS -->
+            <h3 class="section-header">Integrations</h3>
+            <div class="section-content">
+                
+                <!-- Heart Rate Monitor -->
+                <div class="integration-subsection">
+                    <h4 style="color:#00bfff;font-size:16px;margin:0 0 8px 0;">❤️ Heart Rate Monitor</h4>
+                    <label>Connect your heart rate monitor to display BPM:</label>
+                    <div style="margin-top:8px;">
+                        <button id="toggle_heart_rate_enabled_btn" class="btn-{% if heart_rate_enabled %}on{% else %}off{% endif %}">Heart Rate Tracking: {% if heart_rate_enabled %}ON{% else %}OFF{% endif %}</button>
+                        <div style="margin-top:12px;">
+                            <label>Heart Rate Source:</label>
+                            <select id="heart_rate_source" style="width:100%;padding:6px;margin-top:4px;background:var(--input-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:4px;">
+                                <option value="pulsoid" {% if heart_rate_source == 'pulsoid' %}selected{% endif %}>Pulsoid</option>
+                                <option value="hyperate" {% if heart_rate_source == 'hyperate' %}selected{% endif %}>HypeRate.io</option>
+                                <option value="custom" {% if heart_rate_source == 'custom' %}selected{% endif %}>Custom API</option>
+                            </select>
+                        </div>
+                        <div id="pulsoid_settings" style="margin-top:12px;{% if heart_rate_source != 'pulsoid' %}display:none;{% endif %}">
+                            <label>Pulsoid API Token:</label>
+                            <input type="text" id="heart_rate_pulsoid_token" value="{{ heart_rate_pulsoid_token }}" placeholder="Enter your Pulsoid API token" />
+                            <div style="margin-top:8px;color:#999;font-size:12px;">
+                                Get your token from <a href="https://pulsoid.net/ui/keys" target="_blank" style="color:#00bfff;">Pulsoid Developer Page</a>
+                            </div>
+                        </div>
+                        <div id="hyperate_settings" style="margin-top:12px;{% if heart_rate_source != 'hyperate' %}display:none;{% endif %}">
+                            <label>HypeRate Session ID:</label>
+                            <input type="text" id="heart_rate_hyperate_id" value="{{ heart_rate_hyperate_id }}" placeholder="Enter your HypeRate session ID" />
+                            <div style="margin-top:8px;color:#999;font-size:12px;">
+                                Get your session ID from <a href="https://www.hyperate.io/" target="_blank" style="color:#00bfff;">HypeRate.io</a>
+                            </div>
+                        </div>
+                        <div id="custom_api_settings" style="margin-top:12px;{% if heart_rate_source != 'custom' %}display:none;{% endif %}">
+                            <label>Custom API URL:</label>
+                            <input type="text" id="heart_rate_custom_api" value="{{ heart_rate_custom_api }}" placeholder="https://your-api.com/heartrate" />
+                            <div style="margin-top:8px;color:#999;font-size:12px;">
+                                API should return JSON with "bpm", "heart_rate", or "hr" field
+                            </div>
+                        </div>
+                        <div style="margin-top:12px;">
+                            <label>Update Interval (seconds):</label>
+                            <input type="number" id="heart_rate_update_interval" value="{{ heart_rate_update_interval }}" min="1" max="60" />
+                        </div>
+                        <button id="save_heart_rate_settings_btn" class="btn-on" style="margin-top:8px;">Save Heart Rate Settings</button>
+                    </div>
+                    
+                    <!-- Enhanced Heart Rate Options -->
+                    <div id="heartrate_settings" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-color);">
+                        <h5 style="color:#ff6b6b;font-size:14px;margin:0 0 8px 0;">Enhanced Display Options</h5>
+                        <p style="color:#999;font-size:12px;margin-bottom:12px;">Show additional heart rate info like trends and session statistics</p>
+                        
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                <input type="checkbox" id="hr_show_trend" {% if hr_show_trend is not defined or hr_show_trend %}checked{% endif %} />
+                                <span>Show Trend (rising/falling)</span>
+                            </label>
+                            
+                            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                <input type="checkbox" id="hr_show_stats" {% if hr_show_stats %}checked{% endif %} />
+                                <span>Show Stats (min/max/avg)</span>
+                            </label>
+                        </div>
+                        
+                        <button id="reset_hr_stats_btn" class="btn-off" style="margin-top:12px;">Reset Session Stats</button>
+                        
+                        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-color);">
+                            <h5 style="color:#9b59b6;font-size:14px;margin:0 0 8px 0;">🧪 Testing Mode</h5>
+                            <p style="color:#999;font-size:12px;margin-bottom:12px;">Test heart rate display without an actual device</p>
+                            <button id="toggle_hr_simulator_btn" class="btn-off" style="width:100%;">HR Simulator: OFF</button>
+                            <p style="color:#666;font-size:11px;margin-top:4px;font-style:italic;">Generates realistic fake heart rate data for testing</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <hr />
+            
+            <!-- VERSION & UPDATES -->
+            <h3 class="section-header">Version & Updates</h3>
+            <div class="section-content">
+                <label>Check for new versions and updates:</label>
+                <div class="info-box" style="margin-top:8px;">
+                    <div style="margin-bottom:8px;"><strong>Current Version:</strong> <span id="current_version">Loading...</span></div>
+                    <div id="update_info" style="display:none;padding:12px;background:#0d0d0d;border-radius:4px;margin-top:12px;">
+                        <div style="margin-bottom:8px;color:#0f0;font-weight:bold;">🎉 Update Available!</div>
+                        <div style="margin-bottom:8px;"><strong>Latest Version:</strong> <span id="latest_version"></span></div>
+                        <div style="margin-bottom:8px;"><strong>Release:</strong> <span id="release_name"></span></div>
+                        <div style="margin-bottom:12px;" id="release_notes"></div>
+                        <a id="release_link" href="#" target="_blank" style="display:inline-block;padding:8px 16px;background:#0af;color:#fff;text-decoration:none;border-radius:4px;">View on GitHub</a>
+                    </div>
+                    <div id="no_update_info" style="display:none;color:#0f0;">✅ You're up to date!</div>
+                </div>
+                <button id="check_updates_btn" class="btn-on" style="margin-top:8px;">Check for Updates</button>
+            </div>
+            
+            <hr />
+            
+            <!-- EMOJI CUSTOMIZATION -->
+            <h3 class="section-header">Emoji Customization</h3>
+            <div class="section-content">
+                <label>Customize the emojis for each module:</label>
+                <div style="margin-top:8px;">
+                    <label>Time Emoji:</label>
+                    <input type="text" id="time_emoji" value="{{ time_emoji }}" maxlength="5" placeholder="⏰" />
+                    <label>Song Emoji:</label>
+                    <input type="text" id="song_emoji" value="{{ song_emoji }}" maxlength="5" placeholder="🎶" />
+                    <label>Window Emoji:</label>
+                    <input type="text" id="window_emoji" value="{{ window_emoji }}" maxlength="5" placeholder="💻" />
+                    <label>Heart Rate Emoji:</label>
+                    <input type="text" id="heartrate_emoji" value="{{ heartrate_emoji }}" maxlength="5" placeholder="❤️" />
+                    <button id="save_emojis_btn" class="btn-on" style="margin-top:8px;">Save Emojis</button>
+                </div>
+            </div>
+            
+            <hr />
+            
+            <!-- CUSTOMIZATION -->
+            <h3 class="section-header">Customization</h3>
+            <div class="section-content">
+                <label>Custom Background (URL or hex color):</label>
+                <input type="text" id="custom_background" value="{{ custom_background }}" placeholder="https://... or #1a1a1a" />
+                <label>Custom Button Color (hex color):</label>
+                <input type="text" id="custom_button_color" value="{{ custom_button_color }}" placeholder="#27ae60" />
+                <button id="save_premium_styling_btn" class="btn-on" style="margin-top:8px;">Save Customization</button>
+            </div>
+            
+            <hr />
+            
+            <!-- BACKUP & RESTORE -->
+            <h3 class="section-header">Backup & Restore</h3>
+            <div class="section-content">
+                <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <button id="download_settings_btn" class="btn-on">Download Settings</button>
+                    <button id="download_log_btn" class="btn-on">Download Error Log</button>
+                    <button id="reset_defaults_btn" class="btn-off">Reset to Defaults</button>
+                </div>
+                <div style="margin-top:12px;">
+                    <input type="file" id="upload_settings_file" accept=".json" style="display:none;" />
+                    <button id="upload_settings_btn" class="btn-on">Upload Settings</button>
+                    <div style="margin-top:8px;color:#999;font-size:12px;">
+                        Upload a previously downloaded settings.json file to restore your configuration.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== BODY TRACKING TAB ==================== -->
+    <div id="body_tracking_content" class="tabcontent" style="display:none;">
+        <div class="card">
+            <h3 class="section-header">Full Body Tracking</h3>
+            <div class="section-content">
+                <div class="info-box">
+                    Full tracking is now configured here in Crystal style.
+                    <br />
+                    <small>Save settings, then start tracking from this tab.</small>
+                </div>
+                <div class="fbt-section">
+                    <div class="fbt-section-title">Core Tracking</div>
+                    <div class="fbt-grid-3">
+                    <div>
+                        <label>Mode</label>
+                        <select id="fbt_mode">
+                            <option value="vrchat_trackers">VRChat Trackers</option>
+                            <option value="vrchat">VRChat Parameters</option>
+                            <option value="generic">Generic OSC</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Camera Source</label>
+                        <select id="fbt_camera_source">
+                            <option value="local">Local Camera</option>
+                            <option value="phone">Phone Stream</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Camera Index</label>
+                        <input id="fbt_camera" type="number" min="0" max="8" />
+                    </div>
+                    <div>
+                        <label>Phone URL</label>
+                        <input id="fbt_phone_camera_url" type="text" placeholder="http://ip:port/video" />
+                    </div>
+                    <div>
+                        <label>Smoothing</label>
+                        <input id="fbt_smoothing" type="number" step="0.01" min="0" max="0.95" />
+                    </div>
+                    <div>
+                        <label>Position Scale</label>
+                        <input id="fbt_position_scale" type="number" step="0.01" min="0.1" max="4" />
+                    </div>
+                    <div>
+                        <label>Height (m)</label>
+                        <input id="fbt_height_m" type="number" step="0.01" min="1" max="2.5" />
+                    </div>
+                    <div>
+                        <label>Floor Offset</label>
+                        <input id="fbt_floor_offset_m" type="number" step="0.01" min="-1" max="1" />
+                    </div>
+                    <div>
+                        <label>Waist Y Offset</label>
+                        <input id="fbt_hips_offset_m" type="number" step="0.01" min="-1" max="1" />
+                    </div>
+                    <div>
+                        <label>Feet Y Offset</label>
+                        <input id="fbt_feet_y_offset_m" type="number" step="0.01" min="-1" max="1" />
+                    </div>
+                    <div>
+                        <label>Lower Body Y Offset</label>
+                        <input id="fbt_lower_body_y_offset_m" type="number" step="0.01" min="-1" max="1" />
+                    </div>
+                    <div>
+                        <label>X Offset</label>
+                        <input id="fbt_x_offset_m" type="number" step="0.01" min="-2" max="2" />
+                    </div>
+                    <div>
+                        <label>Z Offset</label>
+                        <input id="fbt_z_offset_m" type="number" step="0.01" min="-2" max="2" />
+                    </div>
+                    <div>
+                        <label>Send Rate</label>
+                        <input id="fbt_send_rate" type="number" step="1" min="10" max="120" />
+                    </div>
+                    <div>
+                        <label>Preview FPS</label>
+                        <input id="fbt_preview_fps" type="number" step="1" min="10" max="60" />
+                    </div>
+                    <div>
+                        <label>Foot Toe Influence</label>
+                        <input id="fbt_foot_yaw_blend" type="number" step="0.01" min="0" max="1" />
+                    </div>
+                    <div>
+                        <label>Foot Yaw Offset (deg)</label>
+                        <input id="fbt_foot_yaw_offset_deg" type="number" step="0.5" min="-45" max="45" />
+                    </div>
+                    <div>
+                        <label>Estimator Strength</label>
+                        <input id="fbt_estimation_strength" type="number" step="0.01" min="0.1" max="1" />
+                    </div>
+                    <div>
+                        <label>Occ. Confidence</label>
+                        <input id="fbt_occlusion_confidence_threshold" type="number" step="0.01" min="0.1" max="0.95" />
+                    </div>
+                    <div>
+                        <label>Velocity Damping</label>
+                        <input id="fbt_occlusion_velocity_damping" type="number" step="0.001" min="0.5" max="0.995" />
+                    </div>
+                </div>
+                </div>
+                <div class="fbt-section">
+                    <div class="fbt-section-title">Tracking Toggles</div>
+                    <div class="fbt-grid-3">
+                    <label><input id="fbt_mirror" type="checkbox" /> Mirror Preview</label>
+                    <label><input id="fbt_show_overlay" type="checkbox" /> Show Overlay</label>
+                    <label><input id="fbt_estimation_enabled" type="checkbox" /> AI Estimation</label>
+                    <label><input id="fbt_send_head_align" type="checkbox" /> Head Align OSC</label>
+                    <label><input id="fbt_send_chest_tracker" type="checkbox" /> Chest Tracker</label>
+                    <label><input id="fbt_send_knee_trackers" type="checkbox" /> Knee Trackers</label>
+                    <label><input id="fbt_send_elbow_trackers" type="checkbox" /> Elbow Trackers</label>
+                </div>
+                </div>
+
+                <div class="fbt-section">
+                    <div class="fbt-section-title">Secondary Camera</div>
+                    <div class="fbt-grid-3">
+                    <label><input id="fbt_secondary_enabled" type="checkbox" /> Enable Secondary</label>
+                    <div>
+                        <label>Secondary Source</label>
+                        <select id="fbt_secondary_source">
+                            <option value="phone">Phone</option>
+                            <option value="local">Local Camera</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Secondary Camera Index</label>
+                        <input id="fbt_secondary_camera" type="number" min="0" max="8" />
+                    </div>
+                    <div>
+                        <label>Secondary Phone URL</label>
+                        <input id="fbt_secondary_phone_camera_url" type="text" placeholder="http://ip:port/video" />
+                    </div>
+                    <div>
+                        <label>Secondary Blend</label>
+                        <input id="fbt_secondary_blend" type="number" step="0.01" min="0" max="1" />
+                    </div>
+                    <div>
+                        <label>Secondary Target</label>
+                        <select id="fbt_secondary_target">
+                            <option value="lower_body">Lower Body</option>
+                            <option value="full">Full</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Secondary Rotation</label>
+                        <select id="fbt_secondary_rotation">
+                            <option value="0">0</option>
+                            <option value="90cw">90 CW</option>
+                            <option value="90ccw">90 CCW</option>
+                            <option value="180">180</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Mount Preset</label>
+                        <select id="fbt_secondary_mount_preset">
+                            <option value="right">Right</option>
+                            <option value="left">Left</option>
+                            <option value="back">Back</option>
+                            <option value="front">Front</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Secondary Yaw</label>
+                        <input id="fbt_secondary_yaw_deg" type="number" step="0.5" min="-180" max="180" />
+                    </div>
+                    <div>
+                        <label>Secondary Pitch</label>
+                        <input id="fbt_secondary_pitch_deg" type="number" step="0.5" min="-90" max="90" />
+                    </div>
+                </div>
+                </div>
+                <div class="status-line" style="margin-top:12px;">
+                    <strong>Tracker Status:</strong>
+                    <span id="fbt_status_badge" class="status-badge status-off">Stopped</span>
+                    <span id="fbt_process_info" style="margin-left:8px;color:#999;"></span>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+                    <button id="btn_fbt_save_settings" class="btn-on">Save Tracker Settings</button>
+                    <button id="btn_fbt_start_cli" class="btn-on">Start Integrated Tracker</button>
+                    <button id="btn_fbt_recenter" class="btn-on">Recenter</button>
+                    <button id="btn_fbt_stop" class="btn-off">Stop Tracker</button>
+                    <span id="fbt_recenter_countdown" class="status-badge status-off" style="display:none;"></span>
+                </div>
+                <label style="margin-top:12px;display:block;">Tracker logs:</label>
+                <pre id="fbt_logs" class="multiline" style="max-height:180px;overflow:auto;">No logs yet.</pre>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ==================== ROUTER TAB ==================== -->
+    <div id="router_content" class="tabcontent" style="display:none;">
+        <div class="card">
+            <h3 class="section-header">Optional OSC Router</h3>
+            <div class="section-content">
+                <div class="info-box">
+                    Most setups do not need a router because chatbox + tracker can both send OSC directly to VRChat.
+                    <br />
+                    Use this only if you want both tools to target a single local OSC port first.
+                </div>
+                <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-top:12px;">
+                    <div>
+                        <label>Router Listen IP:</label>
+                        <input id="router_listen_ip" type="text" value="{{ osc_router_listen_ip }}" />
+                    </div>
+                    <div>
+                        <label>Router Listen Port:</label>
+                        <input id="router_listen_port" type="number" min="1" max="65535" value="{{ osc_router_listen_port }}" />
+                    </div>
+                    <button id="btn_router_start" class="btn-on">Start OSC Router</button>
+                    <button id="btn_router_stop" class="btn-off">Stop OSC Router</button>
+                </div>
+                <div class="status-line" style="margin-top:12px;">
+                    <strong>Router Status:</strong>
+                    <span id="router_status_badge" class="status-badge status-off">Stopped</span>
+                </div>
+                <label style="margin-top:12px;display:block;">Router logs:</label>
+                <pre id="router_logs" class="multiline" style="max-height:160px;overflow:auto;">No logs yet.</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== VRCX+ TAB ==================== -->
+    <div id="vrcx_plus_content" class="tabcontent" style="display:none;">
+        <div class="card">
+            <div class="vrcx-plus-header">
+                <h3 class="section-header" style="margin:0;">VRCX+</h3>
+                <div class="status-line" style="margin:0;">
+                    <strong>Status:</strong>
+                    <span id="vrcx_plus_status_badge" class="status-badge status-off">Idle</span>
+                </div>
+            </div>
+            <div class="section-content">
+                <div class="info-box">
+                    Organized VRCX+ hub for search, account actions, avatar switching, logs, and user history.
+                </div>
+
+                <div class="vrcx-plus-subtabs">
+                    <button id="vrcx_plus_subtab_overview" class="tab active" type="button">Overview</button>
+                    <button id="vrcx_plus_subtab_search" class="tab" type="button">Search</button>
+                    <button id="vrcx_plus_subtab_vrchat" class="tab" type="button">VRChat</button>
+                    <button id="vrcx_plus_subtab_logs" class="tab" type="button">Logs</button>
+                </div>
+
+                <div id="vrcx_plus_panel_overview" class="vrcx-plus-panel">
+                    <div class="vrcx-plus-stats" style="margin-top:8px;">
+                        <span class="status-badge status-on" id="vrcx_plus_stat_total">Items: 0</span>
+                        <span class="status-badge status-on" id="vrcx_plus_stat_avatar">Avatars: 0</span>
+                        <span class="status-badge status-on" id="vrcx_plus_stat_world">Worlds: 0</span>
+                        <span class="status-badge status-on" id="vrcx_plus_stat_friend">Friends: 0</span>
+                        <span class="status-badge status-on" id="vrcx_plus_stat_fav">Favorites: 0</span>
+                    </div>
+
+                    <div class="vrcx-plus-two-col">
+                        <div class="vrcx-plus-card-block">
+                            <h4>Quick Add Entry</h4>
+                            <div class="vrcx-plus-grid">
+                                <div>
+                                    <label>Type</label>
+                                    <select id="vrcx_plus_add_type">
+                                        <option value="avatar">Avatar</option>
+                                        <option value="world">World</option>
+                                        <option value="friend">Friend</option>
+                                        <option value="group">Group</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label>Name</label>
+                                    <input id="vrcx_plus_add_name" type="text" placeholder="Entry name..." />
+                                </div>
+                                <div>
+                                    <label>Author</label>
+                                    <input id="vrcx_plus_add_author" type="text" placeholder="Author..." />
+                                </div>
+                                <div>
+                                    <label>Avatar Status</label>
+                                    <select id="vrcx_plus_add_status">
+                                        <option value="public">Public</option>
+                                        <option value="private">Private</option>
+                                    </select>
+                                </div>
+                                <div style="grid-column: span 2;">
+                                    <label>Description</label>
+                                    <input id="vrcx_plus_add_description" type="text" placeholder="Description..." />
+                                </div>
+                                <div style="display:flex;align-items:end;">
+                                    <button id="btn_vrcx_plus_add" class="btn-on" type="button">Add</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="vrcx-plus-card-block">
+                            <h4>Notes</h4>
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                <input id="vrcx_plus_note_text" type="text" placeholder="Add a note..." style="flex:1;" />
+                                <button id="btn_vrcx_plus_add_note" class="btn-on" type="button">Add Note</button>
+                            </div>
+                            <div id="vrcx_plus_notes" class="vrcx-plus-list" style="margin-top:8px;">No notes yet.</div>
+                        </div>
+                    </div>
+
+                    <div class="vrcx-plus-card-block">
+                        <h4>Activity Feed</h4>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <select id="vrcx_plus_event_kind">
+                                <option value="notification">Notification</option>
+                                <option value="feed">Feed</option>
+                                <option value="moderation">Moderation</option>
+                                <option value="group">Group</option>
+                                <option value="system">System</option>
+                            </select>
+                            <input id="vrcx_plus_event_title" type="text" placeholder="Event title..." />
+                            <input id="vrcx_plus_event_detail" type="text" placeholder="Event detail..." style="flex:1;" />
+                            <button id="btn_vrcx_plus_add_event" class="btn-on" type="button">Add Event</button>
+                        </div>
+                        <div id="vrcx_plus_events" class="vrcx-plus-list" style="margin-top:8px;">No events yet.</div>
+                    </div>
+                </div>
+
+                <div id="vrcx_plus_panel_search" class="vrcx-plus-panel" style="display:none;">
+                    <div class="vrcx-plus-card-block">
+                        <h4>Library Search</h4>
+                        <div class="vrcx-plus-grid">
+                            <div>
+                                <label>Search</label>
+                                <input id="vrcx_plus_query" type="text" placeholder="Search by name, author, description..." />
+                            </div>
+                            <div>
+                                <label>Type</label>
+                                <select id="vrcx_plus_type">
+                                    <option value="all">All</option>
+                                    <option value="avatar">Avatar</option>
+                                    <option value="world">World</option>
+                                    <option value="friend">Friend</option>
+                                    <option value="group">Group</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Avatar Status</label>
+                                <select id="vrcx_plus_status">
+                                    <option value="all">All</option>
+                                    <option value="public">Public</option>
+                                    <option value="private">Private</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Sort</label>
+                                <select id="vrcx_plus_sort">
+                                    <option value="updated">Updated</option>
+                                    <option value="created">Created</option>
+                                    <option value="name">Name</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Author Filter</label>
+                                <input id="vrcx_plus_author" type="text" placeholder="Author contains..." />
+                            </div>
+                            <div style="display:flex;align-items:end;gap:8px;">
+                                <label style="display:flex;align-items:center;gap:6px;margin:0;">
+                                    <input id="vrcx_plus_favorites_only" type="checkbox" />
+                                    Favorites only
+                                </label>
+                                <button id="btn_vrcx_plus_search" class="btn-on" type="button">Search</button>
+                                <button id="btn_vrcx_plus_reset" class="btn-off" type="button">Reset</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="vrcx-plus-card-block">
+                        <h4>Results</h4>
+                        <div id="vrcx_plus_results" class="vrcx-plus-list">No results yet.</div>
+                    </div>
+                </div>
+
+                <div id="vrcx_plus_panel_vrchat" class="vrcx-plus-panel" style="display:none;">
+                    <div class="vrcx-plus-card-block">
+                        <h4>VRChat Account</h4>
+                        <div class="vrcx-plus-grid vrcx-auth-grid">
+                            <div>
+                                <label>Username / Email</label>
+                                <input id="vrcx_plus_vrchat_username" type="text" placeholder="VRChat username/email" />
+                            </div>
+                            <div>
+                                <label>Password</label>
+                                <input id="vrcx_plus_vrchat_password" type="password" placeholder="VRChat password" />
+                            </div>
+                            <div style="display:flex;align-items:end;gap:8px;">
+                                <button id="btn_vrcx_plus_vrchat_login" class="btn-on" type="button">Login</button>
+                                <button id="btn_vrcx_plus_vrchat_logout" class="btn-off" type="button">Logout</button>
+                            </div>
+                            <div>
+                                <label>2FA Method</label>
+                                <select id="vrcx_plus_vrchat_2fa_method">
+                                    <option value="totp">TOTP</option>
+                                    <option value="emailOtp">Email OTP</option>
+                                    <option value="otp">OTP / Recovery Code</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>2FA Code</label>
+                                <input id="vrcx_plus_vrchat_2fa_code" type="text" placeholder="123456" />
+                            </div>
+                            <div style="display:flex;align-items:end;">
+                                <button id="btn_vrcx_plus_vrchat_2fa" class="btn-on" type="button">Verify 2FA</button>
+                            </div>
+                            <div style="display:flex;align-items:end;">
+                                <button id="btn_vrcx_plus_vrchat_email_otp" class="btn-off" type="button">Send Email Code</button>
+                            </div>
+                        </div>
+                        <div class="status-line" style="margin-top:8px;">
+                            <strong>VRChat Auth:</strong>
+                            <span id="vrcx_plus_vrchat_auth_badge" class="status-badge status-off">Logged out</span>
+                            <span id="vrcx_plus_vrchat_auth_text" style="margin-left:8px;color:#999;"></span>
+                        </div>
+                    </div>
+
+                    <div class="vrcx-plus-card-block">
+                        <h4>Avatar Database Search</h4>
+                        <div class="vrcx-plus-grid">
+                            <div style="grid-column: span 2;">
+                                <label>External Avatar Provider URLs (one per line)</label>
+                                <textarea id="vrcx_plus_provider_urls" rows="4" placeholder="https://provider-one/search&#10;https://provider-two/search"></textarea>
+                                <small style="color:#999;">All enabled providers are queried at once and merged.</small>
+                            </div>
+                            <div style="display:flex;align-items:end;gap:8px;">
+                                <label style="display:flex;align-items:center;gap:6px;margin:0;">
+                                    <input id="vrcx_plus_provider_enabled" type="checkbox" />
+                                    Use provider
+                                </label>
+                                <button id="btn_vrcx_plus_provider_save" class="btn-on" type="button">Save Provider</button>
+                            </div>
+                        </div>
+                        <div class="vrcx-plus-grid">
+                            <div style="grid-column: span 2;">
+                                <label>Avatar Query</label>
+                                <input id="vrcx_plus_vrchat_avatar_query" type="text" placeholder="Search VRChat avatars..." />
+                            </div>
+                            <div>
+                                <label>Count</label>
+                                <input id="vrcx_plus_vrchat_avatar_n" type="number" min="1" max="100" value="40" />
+                            </div>
+                            <div style="display:flex;align-items:end;">
+                                <button id="btn_vrcx_plus_vrchat_avatar_search" class="btn-on" type="button">Search Avatars</button>
+                            </div>
+                        </div>
+                        <div id="vrcx_plus_vrchat_avatar_results" class="vrcx-plus-list" style="margin-top:8px;">No VRChat avatar results yet.</div>
+                    </div>
+                </div>
+
+                <div id="vrcx_plus_panel_logs" class="vrcx-plus-panel" style="display:none;">
+                    <div class="vrcx-plus-two-col">
+                        <div class="vrcx-plus-card-block">
+                            <h4>Snapshot Controls</h4>
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                                <label style="display:flex;align-items:center;gap:6px;margin:0;">
+                                    <input id="vrcx_plus_vrchat_include_offline" type="checkbox" />
+                                    Include offline friends
+                                </label>
+                                <button id="btn_vrcx_plus_vrchat_snapshot" class="btn-on" type="button">Capture Snapshot</button>
+                            </div>
+                            <hr />
+                            <h5 style="margin:0 0 8px 0;">Auto Snapshot (Recommendation #1)</h5>
+                            <div class="vrcx-plus-grid">
+                                <div>
+                                    <label>Every X minutes</label>
+                                    <input id="vrcx_plus_auto_snapshot_minutes" type="number" min="1" max="180" value="10" />
+                                </div>
+                                <div style="display:flex;align-items:end;gap:8px;">
+                                    <label style="display:flex;align-items:center;gap:6px;margin:0;">
+                                        <input id="vrcx_plus_auto_snapshot_enabled" type="checkbox" />
+                                        Enabled
+                                    </label>
+                                    <label style="display:flex;align-items:center;gap:6px;margin:0;">
+                                        <input id="vrcx_plus_auto_snapshot_include_offline" type="checkbox" />
+                                        Include offline
+                                    </label>
+                                </div>
+                                <div style="display:flex;align-items:end;">
+                                    <button id="btn_vrcx_plus_auto_snapshot_save" class="btn-on" type="button">Save Auto Snapshot</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="vrcx-plus-card-block">
+                            <h4>Player History (Recommendation #2)</h4>
+                            <div class="vrcx-plus-grid" style="margin-bottom:8px;">
+                                <div>
+                                    <label>Filter Friends / Players</label>
+                                    <input id="vrcx_plus_history_user_filter" type="text" placeholder="Name or user id..." />
+                                </div>
+                                <div>
+                                    <label>Recently Seen</label>
+                                    <select id="vrcx_plus_history_recent_filter">
+                                        <option value="all">All</option>
+                                        <option value="24h">Last 24 hours</option>
+                                        <option value="7d">Last 7 days</option>
+                                        <option value="30d">Last 30 days</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="vrcx_plus_history_users" class="vrcx-plus-list">No users yet.</div>
+                            <div id="vrcx_plus_history_entries" class="vrcx-plus-list" style="margin-top:8px;">Select a user to view history.</div>
+                        </div>
+                    </div>
+
+                    <div class="vrcx-plus-card-block">
+                        <h4>Captured Avatars (Wear Any Seen Avatar)</h4>
+                        <div class="vrcx-plus-grid" style="margin-bottom:8px;">
+                            <div>
+                                <label>Avatar / Friend Filter</label>
+                                <input id="vrcx_plus_avatar_history_query" type="text" placeholder="Avatar id, name, or friend..." />
+                            </div>
+                            <div>
+                                <label>Recently Seen</label>
+                                <select id="vrcx_plus_avatar_history_recent">
+                                    <option value="all">All</option>
+                                    <option value="24h">Last 24 hours</option>
+                                    <option value="7d">Last 7 days</option>
+                                    <option value="30d">Last 30 days</option>
+                                </select>
+                            </div>
+                            <div style="display:flex;align-items:end;">
+                                <label style="display:flex;align-items:center;gap:6px;margin:0;">
+                                    <input id="vrcx_plus_avatar_history_selected_only" type="checkbox" />
+                                    Selected user only
+                                </label>
+                            </div>
+                        </div>
+                        <div id="vrcx_plus_avatar_history" class="vrcx-plus-list">No captured avatars yet.</div>
+                    </div>
+
+                    <div class="vrcx-plus-card-block">
+                        <h4>Play Logs (Friends + Avatars)</h4>
+                        <div id="vrcx_plus_friend_logs" class="vrcx-plus-list">No snapshots yet.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="footer">
+    <div class="footer-content">
+        <div class="footer-made-by">Made by Sapph1r3</div>
+        <div class="footer-links">
+            <a href="https://vrchat.com/home/user/usr_d5b25d37-63ff-45b8-9a4a-9a0a1f6e05b0" target="_blank" class="footer-link">
+                🎮 VRChat: Sapph1r3
+            </a>
+            <a href="https://discord.com/users/Bxpq" target="_blank" class="footer-link">
+                💬 Discord: Bxpq
+            </a>
+            <a href="https://discord.gg/3Qypg9vnEP" target="_blank" class="footer-link">
+                🌐 Community Server
+            </a>
+            <a href="https://patreon.com/Sapph1r3" target="_blank" class="footer-link">
+                ❤️ Support on Patreon
+            </a>
+        </div>
+    </div>
+</footer>
+
+<script src="/static/script.js"></script>
+<script>
+// Persistent restart button handler
+(function() {
+    const restartBtn = document.getElementById('restart_app_btn_persistent');
+    if (restartBtn) {
+        restartBtn.addEventListener('click', function() {
+            const banner = document.getElementById('spotify_restart_banner');
+            restartBtn.textContent = '🔄 Restarting...';
+            restartBtn.disabled = true;
+            
+            fetch('/restart_app', { method: 'POST' })
+                .then(() => {
+                    if (banner) {
+                        banner.innerHTML = '<div style="text-align:center;padding:20px;font-size:14px;">✨ App is restarting...<br>Waiting for server to come back online...</div>';
+                    }
+                    
+                    // Poll the server until it's back up, then reload
+                    let attempts = 0;
+                    const maxAttempts = 30; // 30 seconds max
+                    const checkInterval = setInterval(() => {
+                        attempts++;
+                        fetch('/status', { method: 'GET' })
+                            .then(response => {
+                                if (response.ok) {
+                                    clearInterval(checkInterval);
+                                    if (banner) {
+                                        banner.innerHTML = '<div style="text-align:center;padding:20px;font-size:14px;">✅ Server is back! Reloading...</div>';
+                                    }
+                                    setTimeout(() => {
+                                        window.location.reload();
+                                    }, 500);
+                                }
+                            })
+                            .catch(() => {
+                                // Server not ready yet, keep polling
+                                if (attempts >= maxAttempts) {
+                                    clearInterval(checkInterval);
+                                    if (banner) {
+                                        banner.innerHTML = '<div style="text-align:center;padding:20px;font-size:14px;">⚠️ Server took too long to restart.<br>Please refresh the page manually.</div>';
+                                    }
+                                }
+                            });
+                    }, 1000);
+                })
+                .catch(err => {
+                    console.error('Restart failed:', err);
+                    restartBtn.textContent = '❌ Failed - Try Manual Restart';
+                    restartBtn.disabled = false;
+                });
+        });
+    }
+})();
+</script>
+
+<style>
+@keyframes slideIn {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+}
+</style>
+
+</body>
+</html>

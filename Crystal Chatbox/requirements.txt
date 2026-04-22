@@ -1,0 +1,11 @@
+Flask==3.0.0
+gunicorn
+openai
+packaging
+python-osc==1.8.3
+pytz==2023.3
+pywinctl
+requests
+setproctitle
+spotipy
+websocket-client

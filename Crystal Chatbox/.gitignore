@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sensitive Data
+.cache
+.spotify_caches/
+*.log
+vrchat_errors.log
+
+# Dev Tools (keep private!)
+Dev Tools/
+licenses.json
+
+# User Settings (each user has their own)
+settings.json
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
