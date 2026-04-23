@@ -5,7 +5,9 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # ubuntu-24.04 (ubuntu-latest) currently breaks libffi autogen with newer autotools/libtool
+    # (LT_SYS_SYMBOL_USCORE undefined). 22.04 has older toolchain that works reliably with p4a.
+    runs-on: ubuntu-22.04
     timeout-minutes: 120
 
     defaults:
