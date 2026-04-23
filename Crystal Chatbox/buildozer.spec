@@ -23,7 +23,8 @@ version = 1.0.0
 # Application requirements
 # PyWebview supports Android as of v5.0+
 # Pin Flask deps for compatibility (Flask 2.0.x expects Werkzeug < 2.1).
-requirements = python3,kivy,flask,werkzeug==2.0.3,itsdangerous==2.0.1,jinja2==3.0.3,click==8.0.4,markupsafe==2.0.1,python-osc,pytz,spotipy,requests,pywebview,cython,gunicorn
+# Also include runtime deps that aren't guaranteed to be pulled in by p4a/pip on Android.
+requirements = python3,kivy,flask,werkzeug==2.0.3,itsdangerous==2.0.1,jinja2==3.0.3,click==8.0.4,markupsafe==2.0.1,python-osc,pytz,spotipy,requests,charset_normalizer,packaging,pywebview,cython,gunicorn
 
 # Supported Android API
 android.api = 31
