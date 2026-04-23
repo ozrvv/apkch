@@ -54,7 +54,8 @@ jobs:
         env:
           PYTHONFORANDROID_PREREQUISITES_INSTALL_INTERACTIVE: "0"
         run: |
-          buildozer -v android debug
+          # sdkmanager prompts for Android SDK licenses; accept non-interactively in CI
+          yes | buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
