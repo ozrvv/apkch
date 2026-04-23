@@ -53,7 +53,7 @@ jobs:
       - name: CI speed tweaks
         run: |
           # Cut build time by targeting only 64-bit ARM (most modern Android/Quest devices)
-          sed -i 's/^android\\.archs\\s*=.*/android.archs = arm64-v8a/' buildozer.spec
+          sed -i -E 's/^android\.archs[[:space:]]*=.*/android.archs = arm64-v8a/' buildozer.spec
 
       - name: Build debug APK
         env:
@@ -62,9 +62,22 @@ jobs:
           # Buildozer/sdkmanager prompts for Android SDK licenses; accept non-interactively in CI.
           # Avoid failing the step due to `yes` getting SIGPIPE when buildozer exits.
           set +e
-          yes | buildozer -v android debug
+          # Prefer the runner's preinstalled SDK/NDK to reduce downloads and flakiness.
+          export ANDROIDSDK="${ANDROID_SDK_ROOT}"
+          export ANDROIDNDK="${ANDROID_NDK_HOME}"
+
+          # Capture full log for debugging.
+          yes | buildozer -v android debug 2>&1 | tee buildozer.log
           status=${PIPESTATUS[1]}
           exit $status
+
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildozer-log
+          path: |
+            Crystal Chatbox/buildozer.log
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
