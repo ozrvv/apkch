@@ -33,10 +33,6 @@ try:
 except ImportError:
     pass
 
-def _is_android() -> bool:
-    # python-for-android sets ANDROID_ARGUMENT and sys.platform becomes "android".
-    return sys.platform == "android" or bool(os.environ.get("ANDROID_ARGUMENT"))
-
 try:
     import webview
     WEBVIEW_AVAILABLE = True
@@ -53,72 +49,6 @@ def start_server(app, host=None, port=5000):
         host = os.environ.get("HOST", "0.0.0.0")
     print(f"[Server] Starting Flask server at http://{host}:{port} ...")
     app.run(host=host, port=port, debug=False, use_reloader=False)
-
-def _android_open_url(url: str) -> bool:
-    try:
-        from jnius import autoclass  # type: ignore
-        PythonActivity = autoclass("org.kivy.android.PythonActivity")
-        Intent = autoclass("android.content.Intent")
-        Uri = autoclass("android.net.Uri")
-
-        intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-        current_activity = PythonActivity.mActivity
-        current_activity.startActivity(intent)
-        return True
-    except Exception:
-        return False
-
-def _run_android_kivy(app, port: int) -> None:
-    from kivy.app import App
-    from kivy.clock import Clock
-    from kivy.core.window import Window
-    from kivy.uix.boxlayout import BoxLayout
-    from kivy.uix.button import Button
-    from kivy.uix.label import Label
-
-    host = os.environ.get("HOST", "127.0.0.1")
-    url = f"http://{host}:{port}"
-
-    def start_server_thread() -> None:
-        server_thread = threading.Thread(
-            target=start_server, args=(app, host, port), daemon=True
-        )
-        server_thread.start()
-
-    class CrystalChatboxAndroidApp(App):
-        def build(self):
-            Window.clearcolor = (0.05, 0.05, 0.05, 1)
-            Window.allow_screensaver = False
-
-            root = BoxLayout(orientation="vertical", padding=20, spacing=12)
-
-            title = Label(
-                text="[b]Crystal Chatbox[/b]",
-                markup=True,
-                font_size="24sp",
-                size_hint_y=None,
-                height="48dp",
-            )
-
-            status = Label(
-                text=f"Server starting…\n{url}\n\nIf the screen stays blank, tap Open Dashboard.",
-                halign="center",
-                valign="middle",
-            )
-            status.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
-
-            open_btn = Button(text="Open Dashboard", size_hint_y=None, height="52dp")
-            open_btn.bind(on_release=lambda *_: _android_open_url(url))
-
-            root.add_widget(title)
-            root.add_widget(status)
-            root.add_widget(open_btn)
-
-            Clock.schedule_once(lambda *_: start_server_thread(), 0)
-            Clock.schedule_once(lambda *_: _android_open_url(url), 1.0)
-            return root
-
-    CrystalChatboxAndroidApp().run()
 
 class DownloadAPI:
     """API for handling file downloads in PyWebview"""
@@ -189,11 +119,6 @@ def start_gui(app, host="127.0.0.1", port=5000):
     sys.exit(0)
 
 def main():
-    if _is_android():
-        port = int(os.environ.get("PORT", 5000))
-        _run_android_kivy(flask_app, port=port)
-        return
-
     parser = argparse.ArgumentParser(description="Launch Crystal Client Dashboard.")
     parser.add_argument("--nogui", action="store_true", help="Run server only, without GUI.")
     args = parser.parse_args()
